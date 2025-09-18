@@ -1,7 +1,9 @@
 streamlit
 langchain
+langchain-community
 openai
 pinecone-client
 chromadb
 tiktoken
 pypdf
+python-dotenv
