@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+.env
+feedback.db
+fine_tune_input.jsonl
