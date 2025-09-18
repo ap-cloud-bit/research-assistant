@@ -2,7 +2,7 @@ import os, uuid
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.embeddings import OpenAIEmbeddings
-import pinecone
+from pinecone import Pinecone
 import openai
 
 # Load API keys from environment variables
@@ -12,10 +12,12 @@ PINECONE_ENV = os.getenv("PINECONE_ENV", "us-west1-gcp")
 INDEX_NAME = "research-papers"
 
 openai.api_key = OPENAI_API_KEY
-pinecone.init(api_key=PINECONE_API_KEY, environment=PINECONE_ENV)
+pc = Pinecone(api_key=PINECONE_API_KEY)
+index = pc.Index(INDEX_NAME)
 
-if INDEX_NAME not in pinecone.list_indexes():
-    pinecone.create_index(INDEX_NAME, dimension=1536)
+# If index doesn’t exist yet:
+if INDEX_NAME not in pc.list_indexes().names():
+    pc.create_index(name=INDEX_NAME, dimension=1536, metric="cosine")
 
 index = pinecone.Index(INDEX_NAME)
 emb = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
