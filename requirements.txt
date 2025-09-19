@@ -7,4 +7,3 @@ chromadb
 tiktoken
 pypdf
 python-dotenv
-
