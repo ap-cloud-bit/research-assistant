@@ -1,6 +1,6 @@
 import streamlit as st
 from openai import OpenAI
-import pinecone
+from pinecone import Pinecone
 
 # Load secrets
 OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
@@ -9,10 +9,10 @@ INDEX_NAME = st.secrets["PINECONE_INDEX_NAME"]
 
 # Initialize clients
 client = OpenAI(api_key=OPENAI_API_KEY)
-pinecone.init(api_key=PINECONE_API_KEY)
+pc = Pinecone(api_key=PINECONE_API_KEY)
 
 # Connect to Pinecone index
-index = pinecone.Index(INDEX_NAME)
+index = pc.Index(INDEX_NAME)
 
 def retrieve_and_answer(query: str) -> str:
     """
