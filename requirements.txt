@@ -7,3 +7,5 @@ chromadb
 tiktoken
 pypdf
 python-dotenv
+pinecone-client
+
