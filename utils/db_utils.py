@@ -2,7 +2,7 @@
 import os
 from typing import List, Optional
 from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain.vectorstores import Pinecone as LangchainPinecone
+from langchain_community.vectorstores import Pinecone as LangchainPinecone
 from pinecone import Pinecone, ServerlessSpec
 from langchain.docstore.document import Document
 
@@ -16,9 +16,7 @@ def init_pinecone() -> tuple:
 
     index_name = os.getenv("PINECONE_INDEX_NAME", "research-index")
     if index_name not in [i["name"] for i in pc.list_indexes()]:
-        # ⚠️ Dimension must match embedding model output
-        # all-MiniLM-L6-v2 → 384 dimensions
-        dim = 384  
+        dim = 384  # HuggingFace all-MiniLM-L6-v2
         pc.create_index(
             name=index_name,
             dimension=dim,
@@ -27,22 +25,28 @@ def init_pinecone() -> tuple:
         )
     return pc, index_name
 
-def build_or_load_vectorstore(docs: Optional[List[Document]] = None, namespace: Optional[str] = None):
+def build_or_load_vectorstore(
+    docs: Optional[List[Document]] = None,
+    namespace: Optional[str] = None
+):
     pc, index_name = init_pinecone()
 
-    # ✅ HuggingFace embeddings (free, no API key required)
+    # ✅ HuggingFace embeddings
     emb = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+
+    # ✅ New Pinecone client usage
+    index = pc.Index(index_name)
 
     if docs:
         vect = LangchainPinecone.from_documents(
             documents=docs,
             embedding=emb,
-            index_name=index_name,
+            index=index,
             namespace=namespace
         )
     else:
-        vect = LangchainPinecone.from_existing_index(
-            index_name=index_name,
+        vect = LangchainPinecone(
+            index=index,
             embedding=emb,
             namespace=namespace
         )
