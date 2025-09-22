@@ -10,3 +10,4 @@ langchain-groq
 pinecone-client>=3.0.0
 langchain
 sentence-transformers
+huggingface-hub
