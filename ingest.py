@@ -1,40 +1,47 @@
+# ingest.py
 import os
-from langchain_groq import ChatGroq
+from langchain_community.document_loaders import PyPDFLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.chains import RetrievalQA
+from langchain_community.llms import HuggingFaceHub
 from utils.db_utils import build_or_load_vectorstore
 
+# Load PDFs from the data folder
+def load_papers(data_dir="data/papers"):
+    docs = []
+    for fname in os.listdir(data_dir):
+        if fname.endswith(".pdf"):
+            loader = PyPDFLoader(os.path.join(data_dir, fname))
+            docs.extend(loader.load())
+    return docs
 
-def retrieve_and_answer(query, top_k=5):
-    """
-    Retrieve context from Pinecone and generate an answer using Groq LLM.
-    Returns dict with 'answer' and 'sources'.
-    """
+# Build index or load existing one
+def ingest_papers():
+    docs = load_papers()
+    splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+    split_docs = splitter.split_documents(docs)
+    vectorstore = build_or_load_vectorstore(split_docs)
+    return vectorstore
 
-    # Build or load Pinecone vectorstore
-    vectorstore = build_or_load_vectorstore([])  # docs=[] means "just load existing index"
+# Retrieve and answer
+def retrieve_and_answer(query: str, top_k: int = 5):
+    vectorstore = build_or_load_vectorstore([])  # load existing index
     retriever = vectorstore.as_retriever(search_kwargs={"k": top_k})
 
-    # Initialize Groq LLM
-    llm = ChatGroq(
-        groq_api_key=os.getenv("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"),
-        model_name="llama3-70b-8192",   # alt: "llama3-8b-8192"
-        temperature=0
+    # ✅ Use a free HuggingFace model for QA
+    llm = HuggingFaceHub(
+        repo_id="google/flan-t5-large",   # you can swap with other models
+        model_kwargs={"temperature": 0, "max_length": 512}
     )
 
-    # Create QA chain
-    qa_chain = RetrievalQA.from_chain_type(
-        llm=llm,
-        retriever=retriever,
-        chain_type="stuff",
-        return_source_documents=True
-    )
+    qa = RetrievalQA.from_chain_type(llm=llm, retriever=retriever, return_source_documents=True)
+    result = qa.invoke({"query": query})
 
-    # Run query
-    result = qa_chain(query)
+    # Format answer + citations
     answer = result["result"]
     sources = [
-        {"cite": doc.metadata.get("source", "unknown")}
-        for doc in result["source_documents"]
+        {"cite": d.metadata.get("source", "Unknown"), "content": d.page_content[:200]}
+        for d in result["source_documents"]
     ]
 
     return {"answer": answer, "sources": sources}
