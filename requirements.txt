@@ -1,13 +1,14 @@
 streamlit
-langchain
 langchain-community
-openai
 pinecone
 chromadb
 tiktoken
 pypdf
 python-dotenv
-pinecone-client
 groq
 langchain-groq
+pinecone-client>=3.0.0
+langchain
+langchain-openai
+openai
 
