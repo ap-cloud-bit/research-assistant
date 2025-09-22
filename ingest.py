@@ -1,59 +1,40 @@
-import streamlit as st
-from openai import OpenAI
-from pinecone import Pinecone
+import os
+from langchain_groq import ChatGroq
+from langchain.chains import RetrievalQA
+from utils.db_utils import build_or_load_vectorstore
 
-# Load secrets
-OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
-PINECONE_API_KEY = st.secrets["PINECONE_API_KEY"]
-INDEX_NAME = st.secrets["PINECONE_INDEX_NAME"]
 
-# Initialize clients
-client = OpenAI(api_key=OPENAI_API_KEY)
-pc = Pinecone(api_key=PINECONE_API_KEY)
+def retrieve_and_answer(query, top_k=5):
+    """
+    Retrieve context from Pinecone and generate an answer using Groq LLM.
+    Returns dict with 'answer' and 'sources'.
+    """
 
-# Connect to Pinecone index
-index = pc.Index(INDEX_NAME)
+    # Build or load Pinecone vectorstore
+    vectorstore = build_or_load_vectorstore([])  # docs=[] means "just load existing index"
+    retriever = vectorstore.as_retriever(search_kwargs={"k": top_k})
 
-def retrieve_and_answer(query: str, top_k: int = 3) -> dict:
-    """Retrieve docs from Pinecone and generate an answer with citations."""
-    try:
-        # Step 1: Embed the query
-        embed = client.embeddings.create(
-            model="text-embedding-3-small",
-            input=query
-        )
-        query_vector = embed.data[0].embedding
+    # Initialize Groq LLM
+    llm = ChatGroq(
+        groq_api_key=os.getenv("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"),
+        model_name="llama3-70b-8192",   # alt: "llama3-8b-8192"
+        temperature=0
+    )
 
-        # Step 2: Search Pinecone
-        results = index.query(vector=query_vector, top_k=top_k, include_metadata=True)
+    # Create QA chain
+    qa_chain = RetrievalQA.from_chain_type(
+        llm=llm,
+        retriever=retriever,
+        chain_type="stuff",
+        return_source_documents=True
+    )
 
-        # Step 3: Collect sources
-        sources = []
-        context_parts = []
-        for match in results.get("matches", []):
-            text = match["metadata"].get("text", "")
-            cite = match["metadata"].get("source", "Unknown source")
-            context_parts.append(text)
-            sources.append({"text": text, "cite": cite})
+    # Run query
+    result = qa_chain(query)
+    answer = result["result"]
+    sources = [
+        {"cite": doc.metadata.get("source", "unknown")}
+        for doc in result["source_documents"]
+    ]
 
-        context = "\n".join(context_parts)
-
-        # Step 4: Ask OpenAI
-        prompt = f"Answer the question based on the context:\n\nContext:\n{context}\n\nQuestion: {query}\n\nAnswer with citations if possible:"
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}]
-        )
-
-        answer = response.choices[0].message.content
-
-        return {
-            "answer": answer,
-            "sources": sources
-        }
-
-    except Exception as e:
-        return {
-            "answer": f"⚠️ Error: {str(e)}",
-            "sources": []
-        }
+    return {"answer": answer, "sources": sources}
