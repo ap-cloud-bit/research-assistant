@@ -5,7 +5,7 @@ langchain-openai
 langchain-groq
 openai
 groq
-pinecone-client>=3.0.0
+pinecone>=3.0.0
 chromadb
 tiktoken
 pypdf
