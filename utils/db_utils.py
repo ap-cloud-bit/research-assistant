@@ -29,22 +29,21 @@ def build_or_load_vectorstore(
     docs: Optional[List[Document]] = None,
     namespace: Optional[str] = None
 ):
-    pc, index_name = init_pinecone()
+    _, index_name = init_pinecone()
 
-    # ✅ Use HuggingFace embeddings (no OpenAI key required)
+    # ✅ Use HuggingFace embeddings
     emb = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
-    # ✅ Get Pinecone index object
-    index = pc.Index(index_name)
-
     if docs:
+        # Create new Pinecone vectorstore and insert documents
         vect = LangchainPinecone.from_documents(
             documents=docs,
             embedding=emb,
-            index=index,       # ✅ now passing actual index object
+            index_name=index_name,
             namespace=namespace
         )
     else:
+        # Load existing Pinecone index
         vect = LangchainPinecone.from_existing_index(
             index_name=index_name,
             embedding=emb,
