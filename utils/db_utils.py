@@ -16,7 +16,7 @@ def init_pinecone() -> tuple:
 
     index_name = os.getenv("PINECONE_INDEX_NAME", "research-index")
     if index_name not in [i["name"] for i in pc.list_indexes()]:
-        dim = 384  # HuggingFace MiniLM embeddings
+        dim = 384  # HuggingFace MiniLM embeddings dimension
         pc.create_index(
             name=index_name,
             dimension=dim,
@@ -31,19 +31,20 @@ def build_or_load_vectorstore(
 ):
     pc, index_name = init_pinecone()
 
-    # ✅ HuggingFace embeddings
+    # ✅ Use HuggingFace embeddings (no OpenAI key required)
     emb = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
+    # ✅ Get Pinecone index object
+    index = pc.Index(index_name)
+
     if docs:
-        # Store documents into Pinecone
         vect = LangchainPinecone.from_documents(
             documents=docs,
             embedding=emb,
-            index_name=index_name,
+            index=index,       # ✅ now passing actual index object
             namespace=namespace
         )
     else:
-        # Load existing Pinecone index
         vect = LangchainPinecone.from_existing_index(
             index_name=index_name,
             embedding=emb,
